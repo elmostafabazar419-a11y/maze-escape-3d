@@ -1,0 +1,394 @@
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #030508;
+  color: white;
+  font-family: Arial, sans-serif;
+  touch-action: none;
+}
+
+button {
+  color: white;
+  font-weight: bold;
+  border: 1px solid rgba(255,255,255,.3);
+  background: rgba(20, 25, 35, .88);
+  border-radius: 10px;
+  cursor: pointer;
+  user-select: none;
+  touch-action: none;
+}
+
+button:active {
+  background: #b32035;
+  transform: scale(.96);
+}
+
+.hidden {
+  display: none !important;
+}
+
+#game {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+}
+
+#game canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  outline: none;
+}
+
+#menu,
+#pauseScreen,
+#endScreen {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  text-align: center;
+  padding: 20px;
+  background: radial-gradient(ellipse at center, #17202b, #030508 75%);
+}
+
+#menu h1 {
+  font-size: clamp(34px, 8vw, 72px);
+  letter-spacing: 3px;
+  margin-bottom: 8px;
+}
+
+#menu h1 span {
+  color: #e6384e;
+}
+
+#menu p {
+  color: #b8c0ce;
+}
+
+#playBtn,
+#resumeBtn,
+#restartBtn,
+#menuBtn,
+#playAgainBtn {
+  min-width: 180px;
+  padding: 15px 24px;
+  margin: 8px;
+  font-size: 16px;
+}
+
+#playBtn {
+  background: #c5233a;
+  border-color: #f35a6d;
+}
+
+#hud {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.hud-top {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  pointer-events: none;
+}
+
+.hud-card {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, .65);
+  border: 1px solid rgba(255,255,255,.12);
+  font-size: 14px;
+}
+
+#flashlightBtn,
+#pauseBtn {
+  padding: 10px 12px;
+  min-height: 40px;
+  pointer-events: auto;
+}
+
+#flashlightBtn {
+  border-color: #d9c98b;
+}
+
+#message {
+  position: absolute;
+  top: 72px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 85%;
+  padding: 9px 14px;
+  border-radius: 8px;
+  background: rgba(0,0,0,.6);
+  color: #f5f5f5;
+  font-size: 14px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+#crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 24px;
+  font-weight: normal;
+  color: rgba(255,255,255,.8);
+  text-shadow: 0 0 5px black;
+}
+
+#mobileControls {
+  display: none;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.movement {
+  position: absolute;
+  left: 18px;
+  bottom: 25px;
+  width: 160px;
+  pointer-events: none;
+}
+
+.movement-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.control-btn {
+  width: 48px;
+  height: 48px;
+  font-size: 23px;
+  background: rgba(10, 15, 24, .72);
+  border: 1px solid rgba(255,255,255,.45);
+  border-radius: 12px;
+  pointer-events: auto;
+}
+
+.control-btn.up {
+  display: block;
+  margin: auto;
+}
+
+.action-controls {
+  position: absolute;
+  right: 18px;
+  bottom: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.action-btn {
+  min-width: 86px;
+  min-height: 52px;
+  padding: 10px;
+  border-radius: 14px;
+  background: rgba(145, 25, 42, .78);
+  border: 1px solid rgba(255,255,255,.5);
+  font-size: 12px;
+  pointer-events: auto;
+}
+
+#lookBtn {
+  background: rgba(20, 65, 110, .82);
+}
+
+#pauseScreen,
+#endScreen {
+  background: rgba(0,0,0,.88);
+}
+
+#pauseScreen h2,
+#endScreen h1 {
+  font-size: clamp(30px, 7vw, 55px);
+}
+
+#errorMessage {
+  position: fixed;
+  z-index: 50;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  padding: 12px;
+  background: #7c1424;
+  border-radius: 8px;
+  color: white;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px), (pointer: coarse) {
+  #mobileControls {
+    display: block !important;
+  }
+
+  .hud-top {
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    gap: 5px;
+  }
+
+  .hud-card {
+    padding: 8px;
+    font-size: 12px;
+  }
+
+  #flashlightBtn,
+  #pauseBtn {
+    padding: 8px;
+    min-height: 36px;
+    font-size: 12px;
+  }
+
+  #message {
+    top: 62px;
+    font-size: 12px;
+    max-width: 90%;
+  }
+
+  .movement {
+    left: 12px;
+    bottom: 18px;
+    width: 150px;
+  }
+
+  .control-btn {
+    width: 45px;
+    height: 45px;
+  }
+
+  .action-controls {
+    right: 12px;
+    bottom: 24px;
+  }
+
+  .action-btn {
+    min-width: 78px;
+    min-height: 48px;
+  }
+}
+
+/* Mobile controls fix */
+#mobileControls {
+  display: block !important;
+  position: fixed !important;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+#mobileControls .movement {
+  display: block;
+  position: absolute;
+  left: 15px;
+  bottom: 25px;
+  width: 155px;
+  pointer-events: none;
+}
+
+#mobileControls .movement-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+#mobileControls .action-controls {
+  display: flex;
+  position: absolute;
+  right: 15px;
+  bottom: 30px;
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: none;
+}
+
+#mobileControls .control-btn,
+#mobileControls .action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  background: rgba(20, 25, 35, 0.92);
+  border: 2px solid white;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+#mobileControls .control-btn {
+  width: 48px;
+  height: 48px;
+  font-size: 22px;
+}
+
+#mobileControls .action-btn {
+  min-width: 85px;
+  min-height: 50px;
+}
+
+
+#menu input {
+  width: min(300px, 85vw);
+  min-height: 46px;
+  padding: 12px;
+  margin: 6px;
+  border: 1px solid rgba(255,255,255,.3);
+  border-radius: 9px;
+  color: white;
+  background: #111923;
+  font-size: 16px;
+  text-align: center;
+}
+
+#menu button {
+  min-width: 180px;
+  min-height: 46px;
+  padding: 12px 18px;
+  margin: 6px;
+}
+
+#menu #createRoomBtn,
+#menu #startMultiplayerBtn {
+  background: #c5233a;
+}
+
+.room-join {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  max-width: 350px;
+}
+
+#menuMessage,
+#roomInfo {
+  max-width: 90vw;
+  overflow-wrap: anywhere;
+}
