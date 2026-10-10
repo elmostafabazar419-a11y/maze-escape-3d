@@ -80,7 +80,15 @@ function createRoomData() {
     keys: [
       { id: 1, x: 0, z: -12, found: false }
     ],
-    monster: { x: 2, z: 0 },
+    monster: {
+      x: 2,
+      z: 0,
+      state: "wander",
+      targetId: null,
+      wanderDir: { x: 0, z: 0 },
+      lastDirChange: 0,
+      lastStateChange: 0
+    },
     lastMonsterMove: 0,
     caughtAt: {}
   };
@@ -92,7 +100,11 @@ function snapshot(room) {
     hostId: room.hostId,
     players: room.players,
     keys: room.keys,
-    monster: room.monster
+    monster: {
+      x: room.monster.x,
+      z: room.monster.z,
+      state: room.monster.state
+    }
   };
 }
 
@@ -216,6 +228,12 @@ io.on("connection", socket => {
     if (!room || room.started || room.hostId !== socket.id) return;
 
     room.started = true;
+    // reset monster
+    room.monster.state = "wander";
+    room.monster.targetId = null;
+    room.monster.x = 2;
+    room.monster.z = 0;
+
     io.to(code).emit("gameStarted", snapshot(room));
     updateRoom(code);
   });
@@ -236,7 +254,6 @@ io.on("connection", socket => {
     const clampedX = Math.max(-14, Math.min(14, x));
     const clampedZ = Math.max(-14, Math.min(14, z));
 
-    // 🚫 رفض الحركة إلا كانت داخل جدار
     if (collidesWithWall(clampedX, clampedZ, 0.3)) {
       return;
     }
@@ -314,48 +331,113 @@ io.on("connection", socket => {
   });
 });
 
-// Monster movement and collision checks
+// ============ Monster AI ============
+const MONSTER_SPEED = 0.14;
+const VISION_RANGE = 6;
+const LOSE_RANGE = 12;
+const WANDER_CHANGE = 2000;
+
+function getRandomDirection() {
+  const angle = Math.random() * Math.PI * 2;
+  return { x: Math.cos(angle), z: Math.sin(angle) };
+}
+
 setInterval(() => {
   for (const [code, room] of Object.entries(rooms)) {
     if (!room.started) continue;
 
     const now = Date.now();
-    if (now - room.lastMonsterMove < 350) continue;
+    if (now - room.lastMonsterMove < 100) continue;
     room.lastMonsterMove = now;
 
     const players = Object.values(room.players);
     if (!players.length) continue;
 
-    let target = players[0];
-    let distance = Infinity;
+    const monster = room.monster;
 
-    for (const player of players) {
-      const d = Math.hypot(
-        player.x - room.monster.x,
-        player.z - room.monster.z
-      );
-      if (d < distance) {
-        distance = d;
-        target = player;
+    // ============ اختيار الهدف ============
+    let target = null;
+
+    if (monster.state === "chase" && monster.targetId) {
+      target = room.players[monster.targetId];
+      if (target) {
+        const dist = Math.hypot(target.x - monster.x, target.z - monster.z);
+        if (dist > LOSE_RANGE) {
+          monster.state = "wander";
+          monster.targetId = null;
+          target = null;
+        }
+      } else {
+        monster.state = "wander";
+        monster.targetId = null;
       }
     }
 
-    const dx = target.x - room.monster.x;
-    const dz = target.z - room.monster.z;
-    const length = Math.hypot(dx, dz) || 1;
+    if (monster.state === "wander") {
+      let closest = null;
+      let closestDist = Infinity;
 
-    room.monster.x += (dx / length) * 0.22;
-    room.monster.z += (dz / length) * 0.22;
+      for (const p of players) {
+        const d = Math.hypot(p.x - monster.x, p.z - monster.z);
+        if (d < closestDist) {
+          closestDist = d;
+          closest = p;
+        }
+      }
 
-    for (const player of players) {
-      if (Math.hypot(
-        player.x - room.monster.x,
-        player.z - room.monster.z
-      ) < 1.15) {
-        const last = room.caughtAt[player.id] || 0;
+      if (closest && closestDist < VISION_RANGE) {
+        monster.state = "chase";
+        monster.targetId = closest.id;
+        target = closest;
+      }
+    }
+
+    // ============ الحركة ============
+    let moveX = 0;
+    let moveZ = 0;
+
+    if (monster.state === "chase" && target) {
+      const dx = target.x - monster.x;
+      const dz = target.z - monster.z;
+      const len = Math.hypot(dx, dz) || 1;
+      moveX = (dx / len) * MONSTER_SPEED;
+      moveZ = (dz / len) * MONSTER_SPEED;
+    } else {
+      // wander
+      if (now - monster.lastDirChange > WANDER_CHANGE || !monster.wanderDir || (monster.wanderDir.x === 0 && monster.wanderDir.z === 0)) {
+        monster.wanderDir = getRandomDirection();
+        monster.lastDirChange = now;
+      }
+      moveX = monster.wanderDir.x * MONSTER_SPEED;
+      moveZ = monster.wanderDir.z * MONSTER_SPEED;
+    }
+
+    // جرب الحركة X
+    const newX = monster.x + moveX;
+    if (!collidesWithWall(newX, monster.z, 0.4)) {
+      monster.x = newX;
+    } else {
+      monster.wanderDir = getRandomDirection();
+      monster.lastDirChange = now;
+    }
+
+    // جرب الحركة Z
+    const newZ = monster.z + moveZ;
+    if (!collidesWithWall(monster.x, newZ, 0.4)) {
+      monster.z = newZ;
+    } else {
+      monster.wanderDir = getRandomDirection();
+      monster.lastDirChange = now;
+    }
+
+    // ============ الإمساك باللاعب ============
+    for (const p of players) {
+      const d = Math.hypot(p.x - monster.x, p.z - monster.z);
+      if (d < 1.15) {
+        const last = room.caughtAt[p.id] || 0;
         if (now - last > 2500) {
-          room.caughtAt[player.id] = now;
-          io.to(code).emit("playerCaught", player.id);
+          room.caughtAt[p.id] = now;
+          io.to(code).emit("playerCaught", p.id);
         }
       }
     }
