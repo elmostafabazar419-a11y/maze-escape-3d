@@ -71,8 +71,8 @@ html, body {
 
 #menu input {
   width: 100%;
-  max-width: 320px;
-  padding: 12px 16px;
+  max-width: 360px;
+  padding: 14px 16px;
   border: 2px solid #2a3145;
   background: #0f1420;
   color: #fff;
@@ -88,7 +88,7 @@ html, body {
 }
 
 #menu button {
-  padding: 12px 28px;
+  padding: 14px 28px;
   border: none;
   border-radius: 8px;
   font-size: 1rem;
@@ -97,7 +97,7 @@ html, body {
   cursor: pointer;
   transition: transform 0.1s, background 0.2s;
   width: 100%;
-  max-width: 320px;
+  max-width: 360px;
 }
 
 #menu button:active {
@@ -113,11 +113,13 @@ html, body {
   background: #5b4dd1;
 }
 
+/* ============ حقل الكود ============ */
 .room-join {
   display: flex;
   gap: 8px;
   width: 100%;
   max-width: 360px;
+  align-items: stretch;
 }
 
 .room-join input {
@@ -127,21 +129,20 @@ html, body {
   letter-spacing: 3px;
   font-weight: bold;
   text-align: center;
-  padding: 14px 16px;
+  padding: 14px 12px;
   min-width: 0;
-}
-
-.room-join input {
-  flex: 1;
-  text-transform: uppercase;
+  width: auto;
+  max-width: none;
 }
 
 #joinRoomBtn {
   background: #36b8d8;
   color: #fff;
-  padding: 12px 16px;
+  padding: 14px 20px;
   width: auto;
+  max-width: none;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 #joinRoomBtn:hover {
@@ -188,7 +189,7 @@ html, body {
   padding: 12px 20px;
   text-align: center;
   width: 100%;
-  max-width: 320px;
+  max-width: 360px;
 }
 
 #roomInfo strong {
@@ -210,7 +211,7 @@ html, body {
   border-radius: 10px;
   padding: 10px 20px;
   width: 100%;
-  max-width: 320px;
+  max-width: 360px;
   text-align: center;
 }
 
