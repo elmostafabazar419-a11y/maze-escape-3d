@@ -116,23 +116,33 @@ html, body {
 /* ============ حقل الكود ============ */
 .room-join {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
   max-width: 360px;
-  align-items: stretch;
+  align-items: center;
+  justify-content: center;
 }
 
 .room-join input {
-  flex: 1;
+  flex: 1 1 auto;
   text-transform: uppercase;
   font-size: 1.1rem;
   letter-spacing: 3px;
   font-weight: bold;
   text-align: center;
-  padding: 14px 12px;
+  padding: 14px 16px;
   min-width: 0;
   width: auto;
   max-width: none;
+  border: 2px solid #2a3145;
+  background: #0f1420;
+  color: #fff;
+  border-radius: 8px;
+  outline: none;
+}
+
+.room-join input:focus {
+  border-color: #6c5ce7;
 }
 
 #joinRoomBtn {
