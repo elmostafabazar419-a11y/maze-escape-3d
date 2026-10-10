@@ -158,7 +158,7 @@
     scene.add(ceiling);
     objects.push(ceiling);
 
-    const wallMat = material(0x424956);
+    const wallMat = material(0xffd700);
     const trimMat = material(0x941d31);
 
     for (let r = 0; r < wallMap.length; r++) {
@@ -665,7 +665,7 @@
     }
 
     // الوحش
-    if (monsterObject) {
+    //if (monsterObject) {
       const mp = worldToMap(monsterObject.position.x, monsterObject.position.z);
       ctx2.fillStyle = "#ff183f";
       ctx2.beginPath();
