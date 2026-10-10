@@ -158,8 +158,9 @@
     scene.add(ceiling);
     objects.push(ceiling);
 
-    const wallMat = material(0x424956);
-    const trimMat = material(0x941d31);
+    // ✨ الجدران صفراء
+    const wallMat = material(0xffd700);
+    const trimMat = material(0xb8860b); // ذهبي غامق
 
     for (let r = 0; r < wallMap.length; r++) {
       for (let c = 0; c < wallMap[r].length; c++) {
@@ -648,8 +649,8 @@
 
     const cellSize = (CELL / WORLD_SIZE) * W;
 
-    // الحيطان
-    ctx2.fillStyle = "#424956";
+    // الحيطان (باللون الأصفر الفاتح)
+    ctx2.fillStyle = "#ffd700";
     for (let r = 0; r < wallMap.length; r++) {
       for (let c = 0; c < wallMap[r].length; c++) {
         if (wallMap[r][c] !== "1") continue;
@@ -663,6 +664,8 @@
         );
       }
     }
+
+    // ❌ الوحش محيد من الخريطة
 
     // اللاعب (نتا)
     const meMp = worldToMap(player.x, player.z);
@@ -834,7 +837,6 @@
         })));
       }
 
-      // حدّث اللاعبين الآخرين فقط (ماشي نتا)
       for (const [id, p] of Object.entries(players)) {
         if (!socket || !socket.id) continue;
         if (id === socket.id) continue;
@@ -845,7 +847,6 @@
         }
       }
 
-      // حيد اللاعبين اللي خرجو
       for (const id of Object.keys(otherPlayers)) {
         if (!players[id]) {
           scene?.remove(otherPlayers[id]);
