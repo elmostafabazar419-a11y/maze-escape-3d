@@ -31,7 +31,6 @@
   let monsterTarget = null;
   let monsterState = "wander";
 
-  // Mini-Map
   let minimapCanvas = null;
   let minimapCtx = null;
   const MINIMAP_SIZE = 200;
@@ -154,47 +153,71 @@
     }
 
     const loader = new THREE.FBXLoader();
+
+    // حاول تحمّل character.fbx
     loader.load(
       "models/character.fbx",
       (fbx) => {
-        console.log("✅ الوحش تحمل");
-        fbx.scale.set(0.015, 0.015, 0.015);
-        fbx.position.set(2, 0, 0);
-
-        fbx.traverse((child) => {
-          if (child.isMesh) {
-            child.castShadow = true;
-            child.receiveShadow = true;
-          }
-        });
-
-        scene.add(fbx);
-        monsterObject = fbx;
-
-        monsterMixer = new THREE.AnimationMixer(fbx);
-
-        if (fbx.animations && fbx.animations.length > 0) {
-          const idleClip = fbx.animations[0];
-          currentMonsterAction = monsterMixer.clipAction(idleClip);
-          currentMonsterAction.play();
-        }
-
-        loadMonsterAnimation("walk", "models/walk.fbx");
-        loadMonsterAnimation("run", "models/run.fbx");
-        loadMonsterAnimation("attack", "models/attack.fbx");
-
-        monsterLoaded = true;
+        console.log("✅ الوحش تحمل من character.fbx");
+        setupMonsterFromFBX(fbx);
       },
       (progress) => {
         if (progress.total > 0) {
-          console.log("تحميل:", Math.round(progress.loaded / progress.total * 100) + "%");
+          console.log("تحميل character:", Math.round(progress.loaded / progress.total * 100) + "%");
         }
       },
       (error) => {
-        console.error("❌ خطأ:", error);
-        createSimpleMonster();
+        console.warn("⚠️ character.fbx ما تحملش — نجرب idle.fbx");
+
+        // جرب idle.fbx كبديل
+        const loader2 = new THREE.FBXLoader();
+        loader2.load(
+          "models/idle.fbx",
+          (fbx) => {
+            console.log("✅ الوحش تحمل من idle.fbx");
+            setupMonsterFromFBX(fbx);
+          },
+          null,
+          (err2) => {
+            console.error("❌ حتى idle.fbx ما تحملش");
+            createSimpleMonster();
+          }
+        );
       }
     );
+  }
+
+  function setupMonsterFromFBX(fbx) {
+    // صغّر الحجم
+    fbx.scale.set(0.015, 0.015, 0.015);
+    fbx.position.set(2, 0, 0);
+
+    fbx.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+      }
+    });
+
+    scene.add(fbx);
+    monsterObject = fbx;
+
+    monsterMixer = new THREE.AnimationMixer(fbx);
+
+    // شغل أول animation (idle)
+    if (fbx.animations && fbx.animations.length > 0) {
+      const idleClip = fbx.animations[0];
+      currentMonsterAction = monsterMixer.clipAction(idleClip);
+      currentMonsterAction.play();
+      console.log("✅ idle كيتشغل:", idleClip.name);
+    }
+
+    // حمل الحركات الأخرى
+    loadMonsterAnimation("walk", "models/walk.fbx");
+    loadMonsterAnimation("run", "models/run.fbx");
+    loadMonsterAnimation("attack", "models/attack.fbx");
+
+    monsterLoaded = true;
   }
 
   function loadMonsterAnimation(name, file) {
@@ -204,11 +227,11 @@
       (fbx) => {
         if (fbx.animations && fbx.animations.length > 0 && monsterMixer) {
           monsterActions[name] = monsterMixer.clipAction(fbx.animations[0]);
-          console.log("✅", name);
+          console.log("✅", name, "تحملت:", fbx.animations[0].name);
         }
       },
       null,
-      (err) => console.warn("⚠️", name)
+      (err) => console.warn("⚠️", name, "ما تحملتش")
     );
   }
 
@@ -233,6 +256,12 @@
     body.position.y = 0.9;
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.42, 14, 12), monsterMat);
     head.position.y = 1.9;
+    const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    const eye1 = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), eyeMat);
+    eye1.position.set(-0.15, 2.0, -0.38);
+    const eye2 = eye1.clone();
+    eye2.position.x = 0.15;
+    head.add(eye1, eye2);
     monsterObject.add(body, head);
     monsterObject.position.set(2, 0, 0);
     scene.add(monsterObject);
@@ -520,16 +549,24 @@
       }
 
       if (monsterObject && monsterTarget) {
+        // حرّك الوحش
         monsterObject.position.x += (monsterTarget.x - monsterObject.position.x) * Math.min(delta * 5, 1);
         monsterObject.position.z += (monsterTarget.z - monsterObject.position.z) * Math.min(delta * 5, 1);
+
+        // وجّه الوحش للاعب
         const dx = player.x - monsterObject.position.x;
         const dz = player.z - monsterObject.position.z;
         const angle = Math.atan2(dx, dz);
         monsterObject.rotation.y = angle;
+
+        // بدل الحركة حسب الحالة
         const dist = Math.hypot(dx, dz);
         if (monsterState === "chase") {
-          if (dist < 1.5) playMonsterAnimation("attack");
-          else playMonsterAnimation("run");
+          if (dist < 1.5) {
+            playMonsterAnimation("attack");
+          } else {
+            playMonsterAnimation("run");
+          }
         } else {
           playMonsterAnimation("walk");
         }
@@ -691,7 +728,6 @@
     });
   }
 
-  // ============ Mini-Map ============
   function initMinimap() {
     minimapCanvas = $("minimap");
     if (!minimapCanvas) return;
@@ -758,7 +794,6 @@
     ctx2.strokeRect(0, 0, W, H);
   }
 
-  // ============ Multiplayer ============
   function createRoom() {
     if (!socket) return menuMessage("Socket.IO is missing.");
     socket.emit("createRoom", playerName(), result => {
@@ -894,36 +929,4 @@
       }
     });
 
-    socket.on("keyCollected", () => {
-      hasKey = true;
-      serverKeyFound = true;
-      if (keyObject) keyObject.visible = false;
-      updateHUD();
-      message("Key collected!");
-    });
-
-    socket.on("gameWon", data => {
-      finishGame(true);
-      if (data?.playerName && $("endText")) {
-        $("endText").textContent = data.playerName + " escaped!";
-      }
-    });
-  }
-
-  function onResize() {
-    if (!camera || !renderer) return;
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.6));
-  }
-
-  window.addEventListener("resize", onResize);
-
-  try {
-    setupControls();
-    setupSocketEvents();
-  } catch (error) {
-    showError("Error: " + error.message);
-  }
-})();
+   
