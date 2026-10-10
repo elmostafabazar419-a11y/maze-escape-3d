@@ -1,4 +1,3 @@
-
 (() => {
   "use strict";
 
@@ -549,6 +548,16 @@
 
     $("createRoomBtn")?.addEventListener("click", createRoom);
     $("joinRoomBtn")?.addEventListener("click", joinRoom);
+    $("copyCodeBtn")?.addEventListener("click", () => {
+      if (roomCode) {
+        navigator.clipboard.writeText(roomCode).then(() => {
+          menuMessage("Code copied: " + roomCode);
+        }).catch(() => {
+          menuMessage("Room code: " + roomCode);
+        });
+      }
+    });
+
     $("startMultiplayerBtn")?.addEventListener("click", () => {
       if (socket && roomCode && isHost) socket.emit("startGame");
     });
@@ -608,28 +617,27 @@
     });
   }
 
-function createRoom() {
-  if (!socket) return menuMessage("Socket.IO is missing. Check index.html.");
-  socket.emit("createRoom", playerName(), result => {
-    if (!result?.ok) return menuMessage(result?.message || "Could not create room.");
+  function createRoom() {
+    if (!socket) return menuMessage("Socket.IO is missing. Check index.html.");
+    socket.emit("createRoom", playerName(), result => {
+      if (!result?.ok) return menuMessage(result?.message || "Could not create room.");
 
-    roomCode = result.code;
-    isHost = true;
-    multiplayer = true;
+      roomCode = result.code;
+      isHost = true;
+      multiplayer = true;
 
-    // عرض الكود
-    const roomInfo = $("roomInfo");
-    if (roomInfo) {
-      roomInfo.classList.remove("hidden");
-      const codeDisplay = $("roomCodeDisplay");
-      if (codeDisplay) codeDisplay.textContent = roomCode;
-    }
+      const roomInfo = $("roomInfo");
+      if (roomInfo) {
+        roomInfo.classList.remove("hidden");
+        const codeDisplay = $("roomCodeDisplay");
+        if (codeDisplay) codeDisplay.textContent = roomCode;
+      }
 
-    $("startMultiplayerBtn")?.classList.remove("hidden");
-    $("playersList")?.classList.remove("hidden");
-    menuMessage("Share the room code with your friends!");
-  });
-}
+      $("startMultiplayerBtn")?.classList.remove("hidden");
+      $("playersList")?.classList.remove("hidden");
+      menuMessage("Share the code with your friends!");
+    });
+  }
 
   function joinRoom() {
     if (!socket) return menuMessage("Socket.IO is missing. Check index.html.");
@@ -644,13 +652,22 @@ function createRoom() {
       isHost = Boolean(result.host);
       multiplayer = true;
 
-      if ($("roomInfo")) {
-        $("roomInfo").textContent = "Room code: " + roomCode;
-        $("roomInfo").classList.remove("hidden");
+      const roomInfo = $("roomInfo");
+      if (roomInfo) {
+        roomInfo.classList.remove("hidden");
+        const codeDisplay = $("roomCodeDisplay");
+        if (codeDisplay) codeDisplay.textContent = roomCode;
       }
 
-      $("startMultiplayerBtn")?.classList.toggle("hidden", !isHost);
-      menuMessage(isHost ? "Room created. Start when ready." : "Joined room. Wait for the host.");
+      $("playersList")?.classList.remove("hidden");
+
+      if (isHost) {
+        $("startMultiplayerBtn")?.classList.remove("hidden");
+        menuMessage("Room created. Start when ready.");
+      } else {
+        $("startMultiplayerBtn")?.classList.add("hidden");
+        menuMessage("Joined! Wait for the host to start...");
+      }
     });
   }
 
@@ -672,6 +689,18 @@ function createRoom() {
     otherPlayers[id] = group;
   }
 
+  function updatePlayersList(players) {
+    const ul = $("playersUl");
+    if (!ul) return;
+    ul.innerHTML = "";
+    players.forEach(p => {
+      const li = document.createElement("li");
+      li.textContent = p.name + (p.id === socket.id ? " (you)" : "");
+      li.style.color = p.color || "#fff";
+      ul.appendChild(li);
+    });
+  }
+
   function setupSocketEvents() {
     if (!socket) return;
 
@@ -679,7 +708,15 @@ function createRoom() {
       menuMessage("Cannot connect to the server. Check server.js.");
     });
 
+    socket.on("playerJoined", data => {
+      if (data?.players) updatePlayersList(data.players);
+      if (data?.name && data.id !== socket.id) {
+        menuMessage(data.name + " joined the room!");
+      }
+    });
+
     socket.on("gameStarted", () => {
+      menuMessage("");
       startGame();
     });
 
@@ -701,6 +738,14 @@ function createRoom() {
       }
 
       const players = state.players || {};
+
+      if (Object.keys(players).length > 0 && $("playersList") && !$("playersList").classList.contains("hidden")) {
+        updatePlayersList(Object.values(players).map(p => ({
+          id: p.id,
+          name: p.name,
+          color: p.color
+        })));
+      }
 
       for (const [id, p] of Object.entries(players)) {
         if (id === socket.id) continue;
@@ -726,7 +771,7 @@ function createRoom() {
       serverKeyFound = true;
       if (keyObject) keyObject.visible = false;
       updateHUD();
-      message((data?.by || "A player") + " found the key!");
+      message("Key collected! Find the green exit.");
     });
 
     socket.on("playerCaught", id => {
@@ -739,7 +784,9 @@ function createRoom() {
 
     socket.on("gameWon", data => {
       finishGame(true);
-      if (data?.by && $("endText")) $("endText").textContent = data.by + " escaped the maze!";
+      if (data?.playerName && $("endText")) {
+        $("endText").textContent = data.playerName + " escaped the maze!";
+      }
     });
   }
 
