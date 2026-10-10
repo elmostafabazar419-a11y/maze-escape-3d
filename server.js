@@ -200,20 +200,36 @@ io.on("connection", socket => {
     updateRoom(code);
   });
 
-  socket.on("collectKey", id => {
-    const code = socket.data.room;
-    const room = rooms[code];
-    const player = room?.players[socket.id];
-    const key = room?.keys.find(k => k.id === Number(id));
+socket.on("collectKey", id => {
+  const code = socket.data.room;
+  const room = rooms[code];
+  const player = room?.players[socket.id];
+  const key = room?.keys.find(k => k.id === Number(id));
 
-    if (!room || !room.started || !player || !key || key.found) return;
-
-    if (Math.hypot(player.x - key.x, player.z - key.z) < 3) {
-      key.found = true;
-      io.to(code).emit("keyCollected", { id: key.id, by: player.name });
-      updateRoom(code);
-    }
+  console.log("🔑 collectKey:", {
+    roomCode: code,
+    playerId: socket.id,
+    playerPos: player ? { x: player.x, z: player.z } : null,
+    keyPos: key ? { x: key.x, z: key.z } : null,
+    hasRoom: !!room,
+    hasPlayer: !!player,
+    hasKey: !!key,
+    keyFound: key?.found
   });
+
+  if (!room || !room.started || !player || !key || key.found) return;
+
+  const dist = Math.hypot(player.x - key.x, player.z - key.z);
+  console.log("📏 Distance:", dist);
+
+  if (dist < 3) {
+    key.found = true;
+    socket.emit("keyCollected", { id: key.id, by: player.name });
+    io.to(code).emit("keyCollected", { id: key.id, by: player.name });
+    updateRoom(code);
+    console.log("✅ Key collected by", player.name);
+  }
+});
 
   socket.on("playerEscaped", () => {
     const code = socket.data.room;
