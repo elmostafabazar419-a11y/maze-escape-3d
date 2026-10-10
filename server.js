@@ -921,6 +921,7 @@
         monsterState = state.monster.state || "wander";
       }
 
-      const players = state.players || {};
-
-      if (Object.keys(players).length > 0 &&
+     const PORT = process.env.PORT || 3000;
+server.listen(PORT, "0.0.0.0", () => {
+  console.log("MAZE ESCAPE 3D listening on port " + PORT);
+});
