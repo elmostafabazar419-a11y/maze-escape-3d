@@ -13,7 +13,12 @@
   const gameContainer = $("game");
 
   let scene, camera, renderer, clock, flashlight;
-  let keyObject, exitObject;
+  let keyObject, exitObject, monsterObject;
+  let monsterMixer = null;
+  let monsterActions = {};
+  let currentMonsterAction = null;
+  let monsterLoaded = false;
+
   let running = false, paused = false, ended = false;
   let hasKey = false, flashlightOn = true;
   let health = 100;
@@ -23,6 +28,8 @@
   let serverKeyFound = false;
   let lastNetworkUpdate = 0;
   const otherPlayers = {};
+  let monsterTarget = null;
+  let monsterState = "wander";
 
   // Mini-Map
   let minimapCanvas = null;
@@ -109,32 +116,130 @@
     mesh.receiveShadow = true;
     scene.add(mesh);
     objects.push(mesh);
-
     if (isWall) walls.push({ x, z, halfX: w / 2, halfZ: d / 2 });
     return mesh;
   }
 
   function clearScene() {
     if (!scene) return;
-
     for (const child of [...scene.children]) {
       scene.remove(child);
       child.traverse?.(obj => {
         obj.geometry?.dispose();
         if (obj.material) {
-          const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
-          materials.forEach(mat => mat.dispose());
+          const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+          mats.forEach(m => m.dispose());
         }
       });
     }
-
     walls.length = 0;
     objects.length = 0;
     for (const id of Object.keys(otherPlayers)) delete otherPlayers[id];
     keyObject = null;
     exitObject = null;
+    monsterObject = null;
+    monsterMixer = null;
+    monsterActions = {};
+    currentMonsterAction = null;
+    monsterLoaded = false;
+    monsterTarget = null;
   }
 
+  // ============ تحميل الوحش FBX ============
+  function loadMonster() {
+    if (!THREE.FBXLoader) {
+      console.warn("FBXLoader ماشي محمل");
+      createSimpleMonster();
+      return;
+    }
+
+    const loader = new THREE.FBXLoader();
+    loader.load(
+      "models/character.fbx",
+      (fbx) => {
+        console.log("✅ الوحش تحمل");
+        fbx.scale.set(0.015, 0.015, 0.015);
+        fbx.position.set(2, 0, 0);
+
+        fbx.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+
+        scene.add(fbx);
+        monsterObject = fbx;
+
+        monsterMixer = new THREE.AnimationMixer(fbx);
+
+        if (fbx.animations && fbx.animations.length > 0) {
+          const idleClip = fbx.animations[0];
+          currentMonsterAction = monsterMixer.clipAction(idleClip);
+          currentMonsterAction.play();
+        }
+
+        loadMonsterAnimation("walk", "models/walk.fbx");
+        loadMonsterAnimation("run", "models/run.fbx");
+        loadMonsterAnimation("attack", "models/attack.fbx");
+
+        monsterLoaded = true;
+      },
+      (progress) => {
+        if (progress.total > 0) {
+          console.log("تحميل:", Math.round(progress.loaded / progress.total * 100) + "%");
+        }
+      },
+      (error) => {
+        console.error("❌ خطأ:", error);
+        createSimpleMonster();
+      }
+    );
+  }
+
+  function loadMonsterAnimation(name, file) {
+    const loader = new THREE.FBXLoader();
+    loader.load(
+      file,
+      (fbx) => {
+        if (fbx.animations && fbx.animations.length > 0 && monsterMixer) {
+          monsterActions[name] = monsterMixer.clipAction(fbx.animations[0]);
+          console.log("✅", name);
+        }
+      },
+      null,
+      (err) => console.warn("⚠️", name)
+    );
+  }
+
+  function playMonsterAnimation(name) {
+    if (!monsterMixer) return;
+    const action = monsterActions[name];
+    if (!action) return;
+    if (currentMonsterAction === action) return;
+    if (currentMonsterAction) currentMonsterAction.fadeOut(0.3);
+    action.reset().fadeIn(0.3).play();
+    currentMonsterAction = action;
+  }
+
+  function createSimpleMonster() {
+    monsterObject = new THREE.Group();
+    const monsterMat = new THREE.MeshStandardMaterial({
+      color: 0x861b32,
+      emissive: 0x660018,
+      roughness: 0.7
+    });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.5, 0.55), monsterMat);
+    body.position.y = 0.9;
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.42, 14, 12), monsterMat);
+    head.position.y = 1.9;
+    monsterObject.add(body, head);
+    monsterObject.position.set(2, 0, 0);
+    scene.add(monsterObject);
+    monsterLoaded = true;
+  }
+
+  // ============ Maze ============
   function buildMaze() {
     const size = wallMap.length * CELL;
 
@@ -183,7 +288,6 @@
     right.position.x = 0.8;
     const top = new THREE.Mesh(new THREE.BoxGeometry(1.75, 0.18, 0.25), green);
     top.position.y = 2.65;
-
     const portal = new THREE.Mesh(
       new THREE.PlaneGeometry(1.4, 2.4),
       new THREE.MeshBasicMaterial({
@@ -214,11 +318,9 @@
 
     const ring = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.07, 8, 18), gold);
     ring.rotation.x = Math.PI / 2;
-
     const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.55, 8), gold);
     stem.rotation.z = Math.PI / 2;
     stem.position.x = 0.3;
-
     const tooth = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.12), gold);
     tooth.position.set(0.48, -0.15, 0);
     keyObject.add(ring, stem, tooth);
@@ -227,11 +329,12 @@
     const keyLight = new THREE.PointLight(0xffc847, 1.5, 5);
     keyLight.position.copy(keyObject.position);
     scene.add(keyLight);
+
+    loadMonster();
   }
 
   function setupLighting() {
     scene.add(new THREE.HemisphereLight(0x7786a8, 0x151018, 0.3));
-
     const red = new THREE.PointLight(0xff183f, 1.4, 9);
     red.position.set(0, 2.5, 0);
     scene.add(red);
@@ -246,12 +349,10 @@
 
   function initGame() {
     if (!window.THREE) {
-      showError("Three.js failed to load. Check your internet connection.");
+      showError("Three.js failed.");
       return false;
     }
-
     hideError();
-
     if (renderer) {
       gameContainer.innerHTML = "";
       renderer.dispose();
@@ -262,9 +363,7 @@
     scene.background = new THREE.Color(0x05070c);
     scene.fog = new THREE.FogExp2(0x05070c, 0.035);
 
-    camera = new THREE.PerspectiveCamera(
-      75, window.innerWidth / window.innerHeight, 0.1, 100
-    );
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
     camera.rotation.order = "YXZ";
 
     renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
@@ -283,6 +382,8 @@
     yaw = 0;
     pitch = 0;
     ended = false;
+    monsterTarget = null;
+    monsterState = "wander";
     Object.keys(move).forEach(k => move[k] = false);
 
     clearScene();
@@ -308,25 +409,19 @@
 
   function movePlayer(delta) {
     if (!running || paused || ended) return;
-
     let forward = (move.forward ? 1 : 0) - (move.backward ? 1 : 0);
     let sideways = (move.right ? 1 : 0) - (move.left ? 1 : 0);
     if (!forward && !sideways) return;
-
     const len = Math.hypot(forward, sideways);
     forward /= len;
     sideways /= len;
-
     const speed = player.speed * delta;
     const dx = (-Math.sin(yaw) * forward + Math.cos(yaw) * sideways) * speed;
     const dz = (-Math.cos(yaw) * forward - Math.sin(yaw) * sideways) * speed;
-
     const nx = player.x + dx;
     const nz = player.z + dz;
-
     if (!collides(nx, player.z)) player.x = nx;
     if (!collides(player.x, nz)) player.z = nz;
-
     camera.position.set(player.x, 1.65, player.z);
     camera.rotation.set(pitch, yaw, 0, "YXZ");
 
@@ -338,22 +433,18 @@
 
   function collectKey() {
     if (!running || paused || ended || hasKey || !keyObject?.visible) return;
-
     const dx = player.x - keyObject.position.x;
     const dz = player.z - keyObject.position.z;
     const distance = Math.hypot(dx, dz);
-
     if (distance > 3) {
       message("Move closer to the golden key.");
       return;
     }
-
     if (multiplayer && socket) {
       socket.emit("collectKey", 1);
       message("Trying to collect the key...");
       return;
     }
-
     hasKey = true;
     keyObject.visible = false;
     updateHUD();
@@ -364,20 +455,15 @@
     if (!keyObject?.visible || hasKey) return;
     const dx = player.x - keyObject.position.x;
     const dz = player.z - keyObject.position.z;
-    const distance = Math.hypot(dx, dz);
-    if (distance < 2.5) {
-      collectKey();
-    }
+    if (Math.hypot(dx, dz) < 2.5) collectKey();
   }
 
   function checkExit() {
     if (!exitObject || ended) return;
-
     const distance = Math.hypot(
       player.x - exitObject.position.x,
       player.z - exitObject.position.z
     );
-
     if (distance < 1.5) {
       if (!hasKey) {
         message("The exit is locked. Find the golden key first!");
@@ -394,31 +480,26 @@
     ended = true;
     running = false;
     paused = false;
-
     if ($("endTitle")) $("endTitle").textContent = won ? "YOU ESCAPED!" : "GAME OVER";
     if ($("endText")) {
       $("endText").textContent = won
         ? "You found the key and escaped the maze."
         : "Try again and escape the maze.";
     }
-
     endScreen?.classList.remove("hidden");
     hud?.classList.add("hidden");
   }
 
   function startGame() {
     if (!initGame()) return;
-
     menu?.classList.add("hidden");
     pauseScreen?.classList.add("hidden");
     endScreen?.classList.add("hidden");
     hud?.classList.remove("hidden");
-
     running = true;
     paused = false;
     camera.position.set(player.x, 1.65, player.z);
     camera.rotation.set(pitch, yaw, 0, "YXZ");
-
     animate();
     if (isMobile()) message("Use the arrows to move and drag the screen to look around.");
   }
@@ -426,8 +507,9 @@
   function animate() {
     if (!renderer || !scene || !camera) return;
     requestAnimationFrame(animate);
-
     const delta = Math.min(clock.getDelta(), 0.05);
+
+    if (monsterMixer) monsterMixer.update(delta);
 
     if (running && !paused && !ended) {
       movePlayer(delta);
@@ -437,10 +519,25 @@
         keyObject.position.y = 0.8 + Math.sin(performance.now() * 0.003) * 0.12;
       }
 
+      if (monsterObject && monsterTarget) {
+        monsterObject.position.x += (monsterTarget.x - monsterObject.position.x) * Math.min(delta * 5, 1);
+        monsterObject.position.z += (monsterTarget.z - monsterObject.position.z) * Math.min(delta * 5, 1);
+        const dx = player.x - monsterObject.position.x;
+        const dz = player.z - monsterObject.position.z;
+        const angle = Math.atan2(dx, dz);
+        monsterObject.rotation.y = angle;
+        const dist = Math.hypot(dx, dz);
+        if (monsterState === "chase") {
+          if (dist < 1.5) playMonsterAnimation("attack");
+          else playMonsterAnimation("run");
+        } else {
+          playMonsterAnimation("walk");
+        }
+      }
+
       checkCollectibles();
       checkExit();
     }
-
     drawMinimap();
     renderer.render(scene, camera);
   }
@@ -483,19 +580,16 @@
   function bindMoveButton(id, direction) {
     const button = $(id);
     if (!button) return;
-
     const stop = event => {
       event.preventDefault();
       move[direction] = false;
     };
-
     button.addEventListener("pointerdown", event => {
       event.preventDefault();
       if (!running || paused || ended) return;
       move[direction] = true;
       try { button.setPointerCapture(event.pointerId); } catch (_) {}
     });
-
     button.addEventListener("pointerup", stop);
     button.addEventListener("pointercancel", stop);
     button.addEventListener("lostpointercapture", stop);
@@ -553,12 +647,10 @@
 
     gameContainer?.addEventListener("pointermove", event => {
       if (!running || paused || ended || lastTouchX === null || lastTouchY === null) return;
-
       const dx = event.clientX - lastTouchX;
       const dy = event.clientY - lastTouchY;
       lastTouchX = event.clientX;
       lastTouchY = event.clientY;
-
       yaw -= dx * 0.004;
       pitch = Math.max(-1.25, Math.min(1.25, pitch - dy * 0.003));
       if (camera) camera.rotation.set(pitch, yaw, 0, "YXZ");
@@ -568,7 +660,6 @@
       lastTouchX = null;
       lastTouchY = null;
     };
-
     gameContainer?.addEventListener("pointerup", stopLook);
     gameContainer?.addEventListener("pointercancel", stopLook);
 
@@ -608,14 +699,14 @@
   }
 
   function worldToMap(x, z) {
-    const mapX = ((x + MAP_OFFSET) / WORLD_SIZE) * MINIMAP_SIZE;
-    const mapZ = ((z + MAP_OFFSET) / WORLD_SIZE) * MINIMAP_SIZE;
-    return { x: mapX, y: mapZ };
+    return {
+      x: ((x + MAP_OFFSET) / WORLD_SIZE) * MINIMAP_SIZE,
+      y: ((z + MAP_OFFSET) / WORLD_SIZE) * MINIMAP_SIZE
+    };
   }
 
   function drawMinimap() {
     if (!minimapCtx || !minimapCanvas) return;
-
     const ctx2 = minimapCtx;
     const W = MINIMAP_SIZE;
     const H = MINIMAP_SIZE;
@@ -625,19 +716,13 @@
     ctx2.fillRect(0, 0, W, H);
 
     const cellSize = (CELL / WORLD_SIZE) * W;
-
     ctx2.fillStyle = "#ffd700";
     for (let r = 0; r < wallMap.length; r++) {
       for (let c = 0; c < wallMap[r].length; c++) {
         if (wallMap[r][c] !== "1") continue;
         const p = cellToWorld(r, c);
         const mp = worldToMap(p.x, p.z);
-        ctx2.fillRect(
-          mp.x - cellSize / 2,
-          mp.y - cellSize / 2,
-          cellSize,
-          cellSize
-        );
+        ctx2.fillRect(mp.x - cellSize / 2, mp.y - cellSize / 2, cellSize, cellSize);
       }
     }
 
@@ -651,10 +736,7 @@
     ctx2.lineWidth = 2;
     ctx2.beginPath();
     ctx2.moveTo(meMp.x, meMp.y);
-    ctx2.lineTo(
-      meMp.x + Math.sin(yaw) * 12,
-      meMp.y + Math.cos(yaw) * 12
-    );
+    ctx2.lineTo(meMp.x + Math.sin(yaw) * 12, meMp.y + Math.cos(yaw) * 12);
     ctx2.stroke();
 
     for (const id in otherPlayers) {
@@ -678,55 +760,46 @@
 
   // ============ Multiplayer ============
   function createRoom() {
-    if (!socket) return menuMessage("Socket.IO is missing. Check index.html.");
+    if (!socket) return menuMessage("Socket.IO is missing.");
     socket.emit("createRoom", playerName(), result => {
-      if (!result?.ok) return menuMessage(result?.message || "Could not create room.");
-
+      if (!result?.ok) return menuMessage(result?.message || "Error");
       roomCode = result.code;
       isHost = true;
       multiplayer = true;
-
       const roomInfo = $("roomInfo");
       if (roomInfo) {
         roomInfo.classList.remove("hidden");
-        const codeDisplay = $("roomCodeDisplay");
-        if (codeDisplay) codeDisplay.textContent = roomCode;
+        const cd = $("roomCodeDisplay");
+        if (cd) cd.textContent = roomCode;
       }
-
       $("startMultiplayerBtn")?.classList.remove("hidden");
       $("playersList")?.classList.remove("hidden");
-      menuMessage("Share the code with your friends!");
+      menuMessage("Share the code!");
     });
   }
 
   function joinRoom() {
-    if (!socket) return menuMessage("Socket.IO is missing. Check index.html.");
-
+    if (!socket) return menuMessage("Socket.IO is missing.");
     const code = ($("roomCode")?.value || "").trim().toUpperCase();
     if (!code) return menuMessage("Enter a room code.");
-
     socket.emit("joinRoom", { code, name: playerName() }, result => {
-      if (!result?.ok) return menuMessage(result?.message || "Could not join room.");
-
+      if (!result?.ok) return menuMessage(result?.message || "Error");
       roomCode = result.code;
       isHost = Boolean(result.host);
       multiplayer = true;
-
       const roomInfo = $("roomInfo");
       if (roomInfo) {
         roomInfo.classList.remove("hidden");
-        const codeDisplay = $("roomCodeDisplay");
-        if (codeDisplay) codeDisplay.textContent = roomCode;
+        const cd = $("roomCodeDisplay");
+        if (cd) cd.textContent = roomCode;
       }
-
       $("playersList")?.classList.remove("hidden");
-
       if (isHost) {
         $("startMultiplayerBtn")?.classList.remove("hidden");
-        menuMessage("Room created. Start when ready.");
+        menuMessage("Room created.");
       } else {
         $("startMultiplayerBtn")?.classList.add("hidden");
-        menuMessage("Joined! Wait for the host to start...");
+        menuMessage("Joined! Wait for host...");
       }
     });
   }
@@ -738,7 +811,6 @@
       new THREE.MeshStandardMaterial({ color: color || 0x36b8d8 })
     );
     body.position.y = 0.8;
-
     const head = new THREE.Mesh(
       new THREE.SphereGeometry(0.25, 12, 10),
       new THREE.MeshStandardMaterial({ color: 0xe0b99a })
@@ -765,13 +837,13 @@
     if (!socket) return;
 
     socket.on("connect_error", () => {
-      menuMessage("Cannot connect to the server. Check server.js.");
+      menuMessage("Cannot connect.");
     });
 
     socket.on("playerJoined", data => {
       if (data?.players) updatePlayersList(data.players);
       if (data?.name && data.id !== socket.id && !data.left) {
-        menuMessage(data.name + " joined the room!");
+        menuMessage(data.name + " joined!");
       }
     });
 
@@ -785,7 +857,6 @@
 
       const keys = state.keys || [];
       const key = keys.find(k => k.id === 1) || keys[0];
-
       if (key && key.found) {
         serverKeyFound = true;
         hasKey = true;
@@ -793,13 +864,15 @@
         updateHUD();
       }
 
-      const players = state.players || {};
+      if (state.monster) {
+        monsterTarget = { x: state.monster.x, z: state.monster.z };
+        monsterState = state.monster.state || "wander";
+      }
 
+      const players = state.players || {};
       if (Object.keys(players).length > 0 && $("playersList") && !$("playersList").classList.contains("hidden")) {
         updatePlayersList(Object.values(players).map(p => ({
-          id: p.id,
-          name: p.name,
-          color: p.color
+          id: p.id, name: p.name, color: p.color
         })));
       }
 
@@ -821,18 +894,18 @@
       }
     });
 
-    socket.on("keyCollected", data => {
+    socket.on("keyCollected", () => {
       hasKey = true;
       serverKeyFound = true;
       if (keyObject) keyObject.visible = false;
       updateHUD();
-      message("Key collected! Find the green exit.");
+      message("Key collected!");
     });
 
     socket.on("gameWon", data => {
       finishGame(true);
       if (data?.playerName && $("endText")) {
-        $("endText").textContent = data.playerName + " escaped the maze!";
+        $("endText").textContent = data.playerName + " escaped!";
       }
     });
   }
@@ -851,6 +924,6 @@
     setupControls();
     setupSocketEvents();
   } catch (error) {
-    showError("Controls error: " + error.message);
+    showError("Error: " + error.message);
   }
 })();
