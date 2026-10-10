@@ -38,8 +38,8 @@ function createRoomData() {
     started: false,
     players: {},
     keys: [
-      { id: 1, x: -12, z: 0, found: false }
-    ],
+  { id: 1, x: 0, z: -12, found: false }
+],
     monster: { x: 2, z: 0 },
     lastMonsterMove: 0,
     caughtAt: {}
