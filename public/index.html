@@ -7,12 +7,13 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  
+
 <div id="menu">
   <h1>MAZE ESCAPE <span>3D</span></h1>
   <p>Find the key. Escape the maze.</p>
 
   <input id="playerName" maxlength="18" placeholder="Your name" autocomplete="nickname">
+
   <button id="createRoomBtn">CREATE ROOM</button>
 
   <div class="room-join">
@@ -21,57 +22,67 @@
   </div>
 
   <p id="menuMessage" role="status"></p>
-  <p id="roomInfo" class="hidden"></p>
-  <button id="startMultiplayerBtn" class="hidden">START GAME</button>
+
+  <div id="roomInfo" class="hidden">
+    <p>Room code: <strong id="roomCodeDisplay">----</strong></p>
+    <p class="hint">Share this code with your friends</p>
+    <button id="copyCodeBtn">📋 COPY CODE</button>
+  </div>
+
+  <div id="playersList" class="hidden">
+    <h3>Players in room:</h3>
+    <ul id="playersUl"></ul>
+  </div>
+
+  <button id="startMultiplayerBtn" class="hidden">▶ START GAME</button>
   <button id="playBtn">PLAY SOLO</button>
 </div>
 
-  <div id="hud" class="hidden">
-    <div class="hud-top">
-      <div class="hud-card">🔑 Keys: <span id="keyCount">0 / 1</span></div>
-      <div class="hud-card">❤️ <span id="health">100</span></div>
-      <button id="flashlightBtn" aria-label="Toggle flashlight">🔦 LIGHT ON</button>
-      <button id="pauseBtn">Ⅱ</button>
-    </div>
+<div id="hud" class="hidden">
+  <div class="hud-top">
+    <div class="hud-card">🔑 Keys: <span id="keyCount">0 / 1</span></div>
+    <div class="hud-card">❤️ <span id="health">100</span></div>
+    <button id="flashlightBtn" aria-label="Toggle flashlight">🔦 LIGHT ON</button>
+    <button id="pauseBtn">Ⅱ</button>
+  </div>
 
-    <div id="message">Find the key to unlock the exit.</div>
-    <div id="crosshair">+</div>
+  <div id="message">Find the key to unlock the exit.</div>
+  <div id="crosshair">+</div>
 
-    <div id="mobileControls">
-      <div class="movement">
-        <button id="moveForward" class="control-btn up">▲</button>
-        <div class="movement-row">
-          <button id="moveLeft" class="control-btn">◀</button>
-          <button id="moveBackward" class="control-btn">▼</button>
-          <button id="moveRight" class="control-btn">▶</button>
-        </div>
-      </div>
-      <div class="action-controls">
-        <button id="lookBtn" class="action-btn">LOOK</button>
-        <button id="collectBtn" class="action-btn">PICK UP</button>
+  <div id="mobileControls">
+    <div class="movement">
+      <button id="moveForward" class="control-btn up">▲</button>
+      <div class="movement-row">
+        <button id="moveLeft" class="control-btn">◀</button>
+        <button id="moveBackward" class="control-btn">▼</button>
+        <button id="moveRight" class="control-btn">▶</button>
       </div>
     </div>
+    <div class="action-controls">
+      <button id="lookBtn" class="action-btn">LOOK</button>
+      <button id="collectBtn" class="action-btn">PICK UP</button>
+    </div>
   </div>
+</div>
 
-  <div id="pauseScreen" class="hidden">
-    <h2>PAUSED</h2>
-    <button id="resumeBtn">RESUME</button>
-    <button id="restartBtn">RESTART</button>
-    <button id="menuBtn">MAIN MENU</button>
-  </div>
+<div id="pauseScreen" class="hidden">
+  <h2>PAUSED</h2>
+  <button id="resumeBtn">RESUME</button>
+  <button id="restartBtn">RESTART</button>
+  <button id="menuBtn">MAIN MENU</button>
+</div>
 
-  <div id="endScreen" class="hidden">
-    <h1 id="endTitle">YOU ESCAPED!</h1>
-    <p id="endText">You found the exit.</p>
-    <button id="playAgainBtn">PLAY AGAIN</button>
-  </div>
+<div id="endScreen" class="hidden">
+  <h1 id="endTitle">YOU ESCAPED!</h1>
+  <p id="endText">You found the exit.</p>
+  <button id="playAgainBtn">PLAY AGAIN</button>
+</div>
 
-  <div id="errorMessage" class="hidden"></div>
-  <div id="game"></div>
+<div id="errorMessage" class="hidden"></div>
+<div id="game"></div>
 
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-   <script src="game.js"></script>
-  <script src="game.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="game.js"></script>
 </body>
 </html>
