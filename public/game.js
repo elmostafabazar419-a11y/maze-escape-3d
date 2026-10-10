@@ -13,7 +13,7 @@
   const gameContainer = $("game");
 
   let scene, camera, renderer, clock, flashlight;
-  let keyObject, exitObject, monsterObject;
+  let keyObject, exitObject;
   let running = false, paused = false, ended = false;
   let hasKey = false, flashlightOn = true;
   let health = 100;
@@ -23,7 +23,6 @@
   let serverKeyFound = false;
   let lastNetworkUpdate = 0;
   const otherPlayers = {};
-  let monsterTarget = null;
 
   // Mini-Map
   let minimapCanvas = null;
@@ -134,7 +133,6 @@
     for (const id of Object.keys(otherPlayers)) delete otherPlayers[id];
     keyObject = null;
     exitObject = null;
-    monsterObject = null;
   }
 
   function buildMaze() {
@@ -160,7 +158,7 @@
 
     // ✨ الجدران صفراء
     const wallMat = material(0xffd700);
-    const trimMat = material(0xb8860b); // ذهبي غامق
+    const trimMat = material(0xb8860b);
 
     for (let r = 0; r < wallMap.length; r++) {
       for (let c = 0; c < wallMap[r].length; c++) {
@@ -231,22 +229,7 @@
     keyLight.position.copy(keyObject.position);
     scene.add(keyLight);
 
-    monsterObject = new THREE.Group();
-    const monsterMat = new THREE.MeshStandardMaterial({
-      color: 0x861b32,
-      emissive: 0x260008,
-      roughness: 0.7
-    });
-    const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.5, 0.55), monsterMat);
-    body.position.y = 0.9;
-    const head = new THREE.Mesh(
-      new THREE.SphereGeometry(0.42, 14, 12),
-      monsterMat
-    );
-    head.position.y = 1.9;
-    monsterObject.add(body, head);
-    monsterObject.position.set(2, 0, 0);
-    scene.add(monsterObject);
+    // ❌ الوحش محيد
   }
 
   function setupLighting() {
@@ -455,11 +438,6 @@
         keyObject.position.y = 0.8 + Math.sin(performance.now() * 0.003) * 0.12;
       }
 
-      if (monsterObject && monsterTarget) {
-        monsterObject.position.x += (monsterTarget.x - monsterObject.position.x) * Math.min(delta * 5, 1);
-        monsterObject.position.z += (monsterTarget.z - monsterObject.position.z) * Math.min(delta * 5, 1);
-      }
-
       checkCollectibles();
       checkExit();
     }
@@ -649,7 +627,7 @@
 
     const cellSize = (CELL / WORLD_SIZE) * W;
 
-    // الحيطان (باللون الأصفر الفاتح)
+    // الحيطان صفراء
     ctx2.fillStyle = "#ffd700";
     for (let r = 0; r < wallMap.length; r++) {
       for (let c = 0; c < wallMap[r].length; c++) {
@@ -664,8 +642,6 @@
         );
       }
     }
-
-    // ❌ الوحش محيد من الخريطة
 
     // اللاعب (نتا)
     const meMp = worldToMap(player.x, player.z);
@@ -823,10 +799,6 @@
         updateHUD();
       }
 
-      if (state.monster) {
-        monsterTarget = { x: state.monster.x, z: state.monster.z };
-      }
-
       const players = state.players || {};
 
       if (Object.keys(players).length > 0 && $("playersList") && !$("playersList").classList.contains("hidden")) {
@@ -864,11 +836,7 @@
     });
 
     socket.on("playerCaught", id => {
-      if (id !== socket.id || ended) return;
-      health = Math.max(0, health - 25);
-      updateHUD();
-      if (health <= 0) finishGame(false);
-      else message("The monster caught you! Keep moving!");
+      // ❌ الوحش محيد — ما كاينش تأثير
     });
 
     socket.on("gameWon", data => {
