@@ -154,7 +154,6 @@
 
     const loader = new THREE.FBXLoader();
 
-    // حاول تحمّل character.fbx
     loader.load(
       "models/character.fbx",
       (fbx) => {
@@ -168,8 +167,6 @@
       },
       (error) => {
         console.warn("⚠️ character.fbx ما تحملش — نجرب idle.fbx");
-
-        // جرب idle.fbx كبديل
         const loader2 = new THREE.FBXLoader();
         loader2.load(
           "models/idle.fbx",
@@ -188,7 +185,6 @@
   }
 
   function setupMonsterFromFBX(fbx) {
-    // صغّر الحجم
     fbx.scale.set(0.015, 0.015, 0.015);
     fbx.position.set(2, 0, 0);
 
@@ -204,7 +200,6 @@
 
     monsterMixer = new THREE.AnimationMixer(fbx);
 
-    // شغل أول animation (idle)
     if (fbx.animations && fbx.animations.length > 0) {
       const idleClip = fbx.animations[0];
       currentMonsterAction = monsterMixer.clipAction(idleClip);
@@ -212,7 +207,6 @@
       console.log("✅ idle كيتشغل:", idleClip.name);
     }
 
-    // حمل الحركات الأخرى
     loadMonsterAnimation("walk", "models/walk.fbx");
     loadMonsterAnimation("run", "models/run.fbx");
     loadMonsterAnimation("attack", "models/attack.fbx");
@@ -549,24 +543,18 @@
       }
 
       if (monsterObject && monsterTarget) {
-        // حرّك الوحش
         monsterObject.position.x += (monsterTarget.x - monsterObject.position.x) * Math.min(delta * 5, 1);
         monsterObject.position.z += (monsterTarget.z - monsterObject.position.z) * Math.min(delta * 5, 1);
 
-        // وجّه الوحش للاعب
         const dx = player.x - monsterObject.position.x;
         const dz = player.z - monsterObject.position.z;
         const angle = Math.atan2(dx, dz);
         monsterObject.rotation.y = angle;
 
-        // بدل الحركة حسب الحالة
         const dist = Math.hypot(dx, dz);
         if (monsterState === "chase") {
-          if (dist < 1.5) {
-            playMonsterAnimation("attack");
-          } else {
-            playMonsterAnimation("run");
-          }
+          if (dist < 1.5) playMonsterAnimation("attack");
+          else playMonsterAnimation("run");
         } else {
           playMonsterAnimation("walk");
         }
@@ -929,4 +917,14 @@
       }
     });
 
-   
+    socket.on("keyCollected", () => {
+      hasKey = true;
+      serverKeyFound = true;
+      if (keyObject) keyObject.visible = false;
+      updateHUD();
+      message("Key collected!");
+    });
+
+    socket.on("gameWon", data => {
+      finishGame(true);
+      if (data?.playerName && $("endText")) {
