@@ -843,6 +843,7 @@
         })));
       }
 
+      // حدّث اللاعبين الآخرين فقط (ماشي نتا)
       for (const [id, p] of Object.entries(players)) {
         if (id === socket.id) continue;
         if (!otherPlayers[id] && scene) createOtherPlayer(id, p.color);
@@ -852,6 +853,7 @@
         }
       }
 
+      // حيد اللاعبين اللي خرجو
       for (const id of Object.keys(otherPlayers)) {
         if (!players[id]) {
           scene?.remove(otherPlayers[id]);
