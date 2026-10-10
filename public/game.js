@@ -3,7 +3,7 @@
 
   const $ = id => document.getElementById(id);
 
- const socket = typeof io === "function" ? io() : null;
+  const socket = typeof io === "function" ? io() : null;
 
   const menu = $("menu");
   const hud = $("hud");
@@ -158,7 +158,7 @@
     scene.add(ceiling);
     objects.push(ceiling);
 
-    const wallMat = material(0xffd700);
+    const wallMat = material(0x424956);
     const trimMat = material(0x941d31);
 
     for (let r = 0; r < wallMap.length; r++) {
@@ -664,15 +664,6 @@
       }
     }
 
-    // الوحش
-    //if (monsterObject) {
-      const mp = worldToMap(monsterObject.position.x, monsterObject.position.z);
-      ctx2.fillStyle = "#ff183f";
-      ctx2.beginPath();
-      ctx2.arc(mp.x, mp.y, 5, 0, Math.PI * 2);
-      ctx2.fill();
-    }
-
     // اللاعب (نتا)
     const meMp = worldToMap(player.x, player.z);
     ctx2.fillStyle = "#36b8d8";
@@ -844,9 +835,9 @@
       }
 
       // حدّث اللاعبين الآخرين فقط (ماشي نتا)
-    for (const [id, p] of Object.entries(players)) {
-  if (!socket || !socket.id) continue;
-  if (id === socket.id) continue;
+      for (const [id, p] of Object.entries(players)) {
+        if (!socket || !socket.id) continue;
+        if (id === socket.id) continue;
         if (!otherPlayers[id] && scene) createOtherPlayer(id, p.color);
         if (otherPlayers[id]) {
           otherPlayers[id].position.set(p.x, 0, p.z);
