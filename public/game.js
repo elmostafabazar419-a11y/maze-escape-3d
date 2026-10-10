@@ -844,8 +844,9 @@
       }
 
       // حدّث اللاعبين الآخرين فقط (ماشي نتا)
-      for (const [id, p] of Object.entries(players)) {
-        if (id === socket.id) continue;
+    for (const [id, p] of Object.entries(players)) {
+  if (!socket || !socket.id) continue;
+  if (id === socket.id) continue;
         if (!otherPlayers[id] && scene) createOtherPlayer(id, p.color);
         if (otherPlayers[id]) {
           otherPlayers[id].position.set(p.x, 0, p.z);
