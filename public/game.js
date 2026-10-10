@@ -156,7 +156,6 @@
     scene.add(ceiling);
     objects.push(ceiling);
 
-    // ✨ الجدران صفراء
     const wallMat = material(0xffd700);
     const trimMat = material(0xb8860b);
 
@@ -228,8 +227,6 @@
     const keyLight = new THREE.PointLight(0xffc847, 1.5, 5);
     keyLight.position.copy(keyObject.position);
     scene.add(keyLight);
-
-    // ❌ الوحش محيد
   }
 
   function setupLighting() {
@@ -342,12 +339,11 @@
   function collectKey() {
     if (!running || paused || ended || hasKey || !keyObject?.visible) return;
 
-    const distance = Math.hypot(
-      player.x - keyObject.position.x,
-      player.z - keyObject.position.z
-    );
+    const dx = player.x - keyObject.position.x;
+    const dz = player.z - keyObject.position.z;
+    const distance = Math.hypot(dx, dz);
 
-    if (distance > 2) {
+    if (distance > 3) {
       message("Move closer to the golden key.");
       return;
     }
@@ -362,6 +358,16 @@
     keyObject.visible = false;
     updateHUD();
     message("Key collected! Find the green exit.");
+  }
+
+  function checkCollectibles() {
+    if (!keyObject?.visible || hasKey) return;
+    const dx = player.x - keyObject.position.x;
+    const dz = player.z - keyObject.position.z;
+    const distance = Math.hypot(dx, dz);
+    if (distance < 2.5) {
+      collectKey();
+    }
   }
 
   function checkExit() {
@@ -380,13 +386,6 @@
       } else {
         finishGame(true);
       }
-    }
-  }
-
-  function checkCollectibles() {
-    if (!keyObject?.visible || hasKey) return;
-    if (Math.hypot(player.x - keyObject.position.x, player.z - keyObject.position.z) < 1.25) {
-      collectKey();
     }
   }
 
@@ -627,7 +626,6 @@
 
     const cellSize = (CELL / WORLD_SIZE) * W;
 
-    // الحيطان صفراء
     ctx2.fillStyle = "#ffd700";
     for (let r = 0; r < wallMap.length; r++) {
       for (let c = 0; c < wallMap[r].length; c++) {
@@ -643,14 +641,12 @@
       }
     }
 
-    // اللاعب (نتا)
     const meMp = worldToMap(player.x, player.z);
     ctx2.fillStyle = "#36b8d8";
     ctx2.beginPath();
     ctx2.arc(meMp.x, meMp.y, 5, 0, Math.PI * 2);
     ctx2.fill();
 
-    // اتجاه النظر
     ctx2.strokeStyle = "#36b8d8";
     ctx2.lineWidth = 2;
     ctx2.beginPath();
@@ -661,7 +657,6 @@
     );
     ctx2.stroke();
 
-    // اللاعبون الآخرون (صحابك)
     for (const id in otherPlayers) {
       const p = otherPlayers[id];
       if (!p) continue;
@@ -676,7 +671,6 @@
       ctx2.shadowBlur = 0;
     }
 
-    // إطار
     ctx2.strokeStyle = "#6c5ce7";
     ctx2.lineWidth = 2;
     ctx2.strokeRect(0, 0, W, H);
@@ -833,10 +827,6 @@
       if (keyObject) keyObject.visible = false;
       updateHUD();
       message("Key collected! Find the green exit.");
-    });
-
-    socket.on("playerCaught", id => {
-      // ❌ الوحش محيد — ما كاينش تأثير
     });
 
     socket.on("gameWon", data => {
