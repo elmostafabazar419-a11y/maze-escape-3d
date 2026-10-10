@@ -3,7 +3,7 @@
 
   const $ = id => document.getElementById(id);
 
-  const socket = typeof window.io === "function" ? window.io() : null;
+ const socket = typeof io === "function" ? io() : null;
 
   const menu = $("menu");
   const hud = $("hud");
