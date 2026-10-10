@@ -608,23 +608,28 @@
     });
   }
 
-  function createRoom() {
-    if (!socket) return menuMessage("Socket.IO is missing. Check index.html.");
-    socket.emit("createRoom", playerName(), result => {
-      if (!result?.ok) return menuMessage(result?.message || "Could not create room.");
+function createRoom() {
+  if (!socket) return menuMessage("Socket.IO is missing. Check index.html.");
+  socket.emit("createRoom", playerName(), result => {
+    if (!result?.ok) return menuMessage(result?.message || "Could not create room.");
 
-      roomCode = result.code;
-      isHost = true;
-      multiplayer = true;
+    roomCode = result.code;
+    isHost = true;
+    multiplayer = true;
 
-      if ($("roomInfo")) {
-        $("roomInfo").textContent = "Room code: " + roomCode;
-        $("roomInfo").classList.remove("hidden");
-      }
-      $("startMultiplayerBtn")?.classList.remove("hidden");
-      menuMessage("Share the room code with your friends.");
-    });
-  }
+    // عرض الكود
+    const roomInfo = $("roomInfo");
+    if (roomInfo) {
+      roomInfo.classList.remove("hidden");
+      const codeDisplay = $("roomCodeDisplay");
+      if (codeDisplay) codeDisplay.textContent = roomCode;
+    }
+
+    $("startMultiplayerBtn")?.classList.remove("hidden");
+    $("playersList")?.classList.remove("hidden");
+    menuMessage("Share the room code with your friends!");
+  });
+}
 
   function joinRoom() {
     if (!socket) return menuMessage("Socket.IO is missing. Check index.html.");
