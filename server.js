@@ -24,6 +24,46 @@ const COLORS = [
   "#a875e8", "#54c878", "#ef8a45"
 ];
 
+// ============ wallMap للحماية من الغش ============
+const wallMap = [
+  "111111111111111",
+  "100000100000001",
+  "101110101110101",
+  "101000100010101",
+  "101011111010101",
+  "100010000010001",
+  "111010111110101",
+  "100010100000101",
+  "101110101110101",
+  "101000001000001",
+  "101011111011101",
+  "100000100000001",
+  "101110101110101",
+  "100000000000001",
+  "111111111111111"
+];
+
+const CELL = 2;
+const MAP_OFFSET = 14;
+
+function collidesWithWall(x, z, radius = 0.35) {
+  for (let r = 0; r < wallMap.length; r++) {
+    for (let c = 0; c < wallMap[r].length; c++) {
+      if (wallMap[r][c] !== "1") continue;
+      const wx = c * CELL - MAP_OFFSET;
+      const wz = r * CELL - MAP_OFFSET;
+      const halfX = CELL / 2;
+      const halfZ = CELL / 2;
+      const cx = Math.max(wx - halfX, Math.min(x, wx + halfX));
+      const cz = Math.max(wz - halfZ, Math.min(z, wz + halfZ));
+      const dx = x - cx;
+      const dz = z - cz;
+      if (dx * dx + dz * dz < radius * radius) return true;
+    }
+  }
+  return false;
+}
+
 function makeCode() {
   let code;
   do {
@@ -38,8 +78,8 @@ function createRoomData() {
     started: false,
     players: {},
     keys: [
-  { id: 1, x: 0, z: -12, found: false }
-],
+      { id: 1, x: 0, z: -12, found: false }
+    ],
     monster: { x: 2, z: 0 },
     lastMonsterMove: 0,
     caughtAt: {}
@@ -193,43 +233,36 @@ io.on("connection", socket => {
 
     if (![x, z, yaw].every(Number.isFinite)) return;
 
-    player.x = Math.max(-14, Math.min(14, x));
-    player.z = Math.max(-14, Math.min(14, z));
+    const clampedX = Math.max(-14, Math.min(14, x));
+    const clampedZ = Math.max(-14, Math.min(14, z));
+
+    // 🚫 رفض الحركة إلا كانت داخل جدار
+    if (collidesWithWall(clampedX, clampedZ, 0.3)) {
+      return;
+    }
+
+    player.x = clampedX;
+    player.z = clampedZ;
     player.yaw = yaw;
 
     updateRoom(code);
   });
 
-socket.on("collectKey", id => {
-  const code = socket.data.room;
-  const room = rooms[code];
-  const player = room?.players[socket.id];
-  const key = room?.keys.find(k => k.id === Number(id));
+  socket.on("collectKey", id => {
+    const code = socket.data.room;
+    const room = rooms[code];
+    const player = room?.players[socket.id];
+    const key = room?.keys.find(k => k.id === Number(id));
 
-  console.log("🔑 collectKey:", {
-    roomCode: code,
-    playerId: socket.id,
-    playerPos: player ? { x: player.x, z: player.z } : null,
-    keyPos: key ? { x: key.x, z: key.z } : null,
-    hasRoom: !!room,
-    hasPlayer: !!player,
-    hasKey: !!key,
-    keyFound: key?.found
+    if (!room || !room.started || !player || !key || key.found) return;
+
+    const dist = Math.hypot(player.x - key.x, player.z - key.z);
+    if (dist < 3) {
+      key.found = true;
+      io.to(code).emit("keyCollected", { id: key.id, by: player.name });
+      updateRoom(code);
+    }
   });
-
-  if (!room || !room.started || !player || !key || key.found) return;
-
-  const dist = Math.hypot(player.x - key.x, player.z - key.z);
-  console.log("📏 Distance:", dist);
-
-  if (dist < 3) {
-    key.found = true;
-    socket.emit("keyCollected", { id: key.id, by: player.name });
-    io.to(code).emit("keyCollected", { id: key.id, by: player.name });
-    updateRoom(code);
-    console.log("✅ Key collected by", player.name);
-  }
-});
 
   socket.on("playerEscaped", () => {
     const code = socket.data.room;
